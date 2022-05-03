@@ -1,0 +1,150 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: addition-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.1.2, pipelines.kubeflow.org/pipeline_compilation_time: '2022-05-03T15:35:01.144473',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "An example pipeline that
+      performs addition calculations.", "inputs": [{"name": "a"}, {"default": "7",
+      "name": "b", "optional": true}, {"default": "4", "name": "c", "optional": true},
+      {"default": "1", "name": "d", "optional": true}], "name": "Addition-pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.1.2}
+spec:
+  entrypoint: addition-pipeline
+  templates:
+  - name: add
+    container:
+      args: [--a, '{{inputs.parameters.a}}', --b, '{{inputs.parameters.b}}', --f,
+        /tmp/outputs/f/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - |
+        def _parent_dirs_maker_that_returns_open_file(mode: str, encoding: str = None):
+            def make_parent_dirs_and_return_path(file_path: str):
+                import os
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                return open(file_path, mode=mode, encoding=encoding)
+            return make_parent_dirs_and_return_path
+
+        def add(a, b, f):
+            '''Calculates sum of two arguments'''
+            sum_ = a + b
+            f.write(str(sum_)) # cast to str
+            return sum_
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='Add', description='Calculates sum of two arguments')
+        _parser.add_argument("--a", dest="a", type=float, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("--b", dest="b", type=float, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("--f", dest="f", type=_parent_dirs_maker_that_returns_open_file('wt'), required=True, default=argparse.SUPPRESS)
+        _parsed_args = vars(_parser.parse_args())
+
+        _outputs = add(**_parsed_args)
+      image: python:3.7
+    inputs:
+      parameters:
+      - {name: a}
+      - {name: b}
+    outputs:
+      artifacts:
+      - {name: add-f, path: /tmp/outputs/f/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Calculates
+          sum of two arguments", "implementation": {"container": {"args": ["--a",
+          {"inputValue": "a"}, "--b", {"inputValue": "b"}, "--f", {"outputPath": "f"}],
+          "command": ["python3", "-u", "-c", "def _parent_dirs_maker_that_returns_open_file(mode:
+          str, encoding: str = None):\n    def make_parent_dirs_and_return_path(file_path:
+          str):\n        import os\n        os.makedirs(os.path.dirname(file_path),
+          exist_ok=True)\n        return open(file_path, mode=mode, encoding=encoding)\n    return
+          make_parent_dirs_and_return_path\n\ndef add(a, b, f):\n    ''''''Calculates
+          sum of two arguments''''''\n    sum_ = a + b\n    f.write(str(sum_)) # cast
+          to str\n    return sum_\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Add'',
+          description=''Calculates sum of two arguments'')\n_parser.add_argument(\"--a\",
+          dest=\"a\", type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--b\",
+          dest=\"b\", type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--f\",
+          dest=\"f\", type=_parent_dirs_maker_that_returns_open_file(''wt''), required=True,
+          default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = add(**_parsed_args)\n"], "image": "python:3.7"}}, "inputs": [{"name":
+          "a", "type": "Float"}, {"name": "b", "type": "Float"}], "name": "Add", "outputs":
+          [{"name": "f"}]}', pipelines.kubeflow.org/component_ref: '{}', pipelines.kubeflow.org/arguments.parameters: '{"a":
+          "{{inputs.parameters.a}}", "b": "{{inputs.parameters.b}}"}'}
+  - name: addition-pipeline
+    inputs:
+      parameters:
+      - {name: a}
+      - {name: b}
+      - {name: c}
+      - {name: d}
+    dag:
+      tasks:
+      - name: add
+        template: add
+        arguments:
+          parameters:
+          - {name: a, value: '{{inputs.parameters.a}}'}
+          - {name: b, value: '{{inputs.parameters.b}}'}
+      - name: multiply
+        template: multiply
+        dependencies: [add]
+        arguments:
+          parameters:
+          - {name: c, value: '{{inputs.parameters.c}}'}
+          - {name: d, value: '{{inputs.parameters.d}}'}
+          artifacts:
+          - {name: add-f, from: '{{tasks.add.outputs.artifacts.add-f}}'}
+  - name: multiply
+    container:
+      args: [--c, '{{inputs.parameters.c}}', --d, '{{inputs.parameters.d}}', --f,
+        /tmp/inputs/f/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - |
+        def multiply(c, d, f):
+            '''Calculates the product'''
+            in_ = float(f.read()) # cast to float
+            product = c * d * in_
+            print(product)
+            return product
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='Multiply', description='Calculates the product')
+        _parser.add_argument("--c", dest="c", type=float, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("--d", dest="d", type=float, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("--f", dest="f", type=argparse.FileType('rt'), required=True, default=argparse.SUPPRESS)
+        _parsed_args = vars(_parser.parse_args())
+
+        _outputs = multiply(**_parsed_args)
+      image: python:3.7
+    inputs:
+      parameters:
+      - {name: c}
+      - {name: d}
+      artifacts:
+      - {name: add-f, path: /tmp/inputs/f/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Calculates
+          the product", "implementation": {"container": {"args": ["--c", {"inputValue":
+          "c"}, "--d", {"inputValue": "d"}, "--f", {"inputPath": "f"}], "command":
+          ["python3", "-u", "-c", "def multiply(c, d, f):\n    ''''''Calculates the
+          product''''''\n    in_ = float(f.read()) # cast to float\n    product =
+          c * d * in_\n    print(product)\n    return product\n\nimport argparse\n_parser
+          = argparse.ArgumentParser(prog=''Multiply'', description=''Calculates the
+          product'')\n_parser.add_argument(\"--c\", dest=\"c\", type=float, required=True,
+          default=argparse.SUPPRESS)\n_parser.add_argument(\"--d\", dest=\"d\", type=float,
+          required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--f\",
+          dest=\"f\", type=argparse.FileType(''rt''), required=True, default=argparse.SUPPRESS)\n_parsed_args
+          = vars(_parser.parse_args())\n\n_outputs = multiply(**_parsed_args)\n"],
+          "image": "python:3.7"}}, "inputs": [{"name": "c", "type": "Float"}, {"name":
+          "d", "type": "Float"}, {"name": "f"}], "name": "Multiply"}', pipelines.kubeflow.org/component_ref: '{}',
+        pipelines.kubeflow.org/arguments.parameters: '{"c": "{{inputs.parameters.c}}",
+          "d": "{{inputs.parameters.d}}"}'}
+  arguments:
+    parameters:
+    - {name: a}
+    - {name: b, value: '7'}
+    - {name: c, value: '4'}
+    - {name: d, value: '1'}
+  serviceAccountName: pipeline-runner

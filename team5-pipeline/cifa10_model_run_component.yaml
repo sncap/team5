@@ -1,0 +1,27 @@
+name: Cifa10 model run
+inputs:
+- {name: f}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - python3
+    - -u
+    - -c
+    - |
+      def cifa10_model_run(f):
+          import tensorflow as tf
+
+          img = tf.convert_to_tensor(f.read())
+          #TODO kfserving inference service run
+          return img
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Cifa10 model run', description='')
+      _parser.add_argument("--f", dest="f", type=argparse.FileType('rt'), required=True, default=argparse.SUPPRESS)
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = cifa10_model_run(**_parsed_args)
+    args:
+    - --f
+    - {inputPath: f}
