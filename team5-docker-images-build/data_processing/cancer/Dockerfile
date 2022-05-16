@@ -8,6 +8,7 @@ RUN apt-get update
 RUN python -m pip install --upgrade pip
 RUN pip install pika
 RUN pip install numpy
+RUN pip install requests
 COPY ./AI_Prediction_Service /workspace/AI_Prediction_Service
 COPY ./start.sh /data/start.sh 
 VOLUME ["/DATA"]
