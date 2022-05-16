@@ -17,6 +17,8 @@ do
 		echo cp $d_path $s_path
 		cp $d_path $d_dst 
 		cp $s_path $s_dst
+		chmod +x $d_dst
+                chmod +x $s_dst
 		tag="$repo/$mfd/$sfd:v1.0"
 		echo docker build ./ -t $tag
 		docker build ./ -t $tag
